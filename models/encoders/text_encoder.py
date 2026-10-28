@@ -39,9 +39,21 @@ class ImageCLIP(nn.Module):
         # Lazy import because of torchvision.
         import clip
 
-        self.clip_model, self.preprocess = clip.load(
-            clip_name, download_root=cache_dir or default_cache_dir()
-        )
+        if os.environ.get('MGPC_ENCODER_INIT_ONLY') == '1':
+            # ViT-L/14 architecture only; the complete MGPC state is loaded strictly.
+            if clip_name != 'ViT-L/14':
+                raise ValueError('Checkpoint-only initialization supports ViT-L/14')
+            from clip.model import CLIP
+            from clip.clip import _transform
+            self.clip_model = CLIP(embed_dim=768, image_resolution=224,
+                vision_layers=24, vision_width=1024, vision_patch_size=14,
+                context_length=77, vocab_size=49408, transformer_width=768,
+                transformer_heads=12, transformer_layers=12)
+            self.preprocess = _transform(224)
+        else:
+            self.clip_model, self.preprocess = clip.load(
+                clip_name, download_root=cache_dir or default_cache_dir()
+            )
         
         self.clip_name = clip_name
 
